@@ -1,0 +1,100 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "invented adventures",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
+          "name": "AdventureChoiceIntent",
+          "slots": [
+            {
+              "name": "action",
+              "type": "AMAZON.SearchQuery",
+              "samples": [
+                "i think i will {action}",
+                "i\u0027m going to {action}",
+                "i will {action}",
+                "i want to {action}"
+              ]
+            }
+          ],
+          "samples": [
+            "i\u0027m going to {action}",
+            "i think i will {action}",
+            "okey i will {action}",
+            "i choose to {action}",
+            "i will {action}",
+            "i want to {action}"
+          ]
+        },
+        {
+          "name": "RepeatIntent",
+          "slots": [],
+          "samples": [
+            "i don\u0027t know what you mean",
+            "i didn\u0027t understand you",
+            "i couldn\u0027t understand you",
+            "please repeat",
+            "repeat",
+            "i want you to repeat",
+            "can you repeat",
+            "would you mind to repeat"
+          ]
+        }
+      ],
+      "types": []
+    },
+    "dialog": {
+      "intents": [
+        {
+          "name": "AdventureChoiceIntent",
+          "confirmationRequired": false,
+          "prompts": {},
+          "slots": [
+            {
+              "name": "action",
+              "type": "AMAZON.SearchQuery",
+              "elicitationRequired": true,
+              "confirmationRequired": false,
+              "prompts": {
+                "elicitation": "Elicit.Slot.620514975785.726913798210"
+              }
+            }
+          ]
+        }
+      ],
+      "delegationStrategy": "ALWAYS"
+    },
+    "prompts": [
+      {
+        "id": "Elicit.Slot.620514975785.726913798210",
+        "variations": [
+          {
+            "type": "PlainText",
+            "value": "what do you want to do now?"
+          }
+        ]
+      }
+    ]
+  },
+  "version": "2"
+}

@@ -1,0 +1,102 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "aventuras inventadas",
+      "intents": [
+        {
+          "name": "RepeatIntent",
+          "slots": [],
+          "samples": [
+            "dónde estaba",
+            "puedes repetir las opciones",
+            "qué opciones tenía",
+            "cuál era la descripción",
+            "no sé qué has dicho",
+            "no te he entendido",
+            "como has dicho",
+            "repite",
+            "puedes repetir"
+          ]
+        },
+        {
+          "name": "AdventureChoiceIntent",
+          "slots": [
+            {
+              "name": "action",
+              "type": "AMAZON.SearchQuery",
+              "samples": [
+                "pues quiero {action}",
+                "quiero {action}",
+                "creo que voy a {action}",
+                "bueno elijo {action}",
+                "voy a {action}",
+                "no sé voy a {action}",
+                "elijo {action}",
+                "pues elijo {action}"
+              ]
+            }
+          ],
+          "samples": [
+            "decido {action}",
+            "value pues voy a {action}",
+            "voy a {action}",
+            "quiero {action}",
+            "pues voy a {action}",
+            "pues elijo {action}",
+            "elijo {action}"
+          ]
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        }
+      ],
+      "types": []
+    },
+    "dialog": {
+      "intents": [
+        {
+          "name": "AdventureChoiceIntent",
+          "confirmationRequired": false,
+          "prompts": {},
+          "slots": [
+            {
+              "name": "action",
+              "type": "AMAZON.SearchQuery",
+              "elicitationRequired": true,
+              "confirmationRequired": false,
+              "prompts": {
+                "elicitation": "Elicit.Slot.859676424678.1343336148218"
+              }
+            }
+          ]
+        }
+      ],
+      "delegationStrategy": "ALWAYS"
+    },
+    "prompts": [
+      {
+        "id": "Elicit.Slot.859676424678.1343336148218",
+        "variations": [
+          {
+            "type": "PlainText",
+            "value": "qué eliges?"
+          }
+        ]
+      }
+    ]
+  },
+  "version": "5"
+}
