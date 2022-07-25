@@ -4,6 +4,12 @@ const i18n = require('i18next');
 const sprintf = require('i18next-sprintf-postprocessor');
 const got = require('got');
 
+/**
+ * 
+ * GLOBAL VARIABLES
+ * 
+ */
+
 const OPENAI_SECRET_KEY='{YOUR_OPENAI_API_KEY}';
 const OPENAI_URL = 'https://api.openai.com/v1/completions';
 
@@ -30,6 +36,8 @@ const languageStrings = {
     }
 }
 
+const maxActionLength = 120;
+
 const initMsg = {
     'en': "You're walking along a trail but it's getting dark and you're getting cold.",
     'es': "Vas andando por un sendero pero está atardeciendo y empieza a hacer frío.",
@@ -45,6 +53,19 @@ const initPrompt = {
     "\nHumano: seguir por el sendero" +
     "\nIA: ",
 }
+
+const warningMsg = {
+    'en': "I'm not allowed to say what happens next. Try a different action.",
+    'es': "No se me permite decir lo que ocurre después. Prueba con otra acción.",
+}
+
+const toxicLabels = ['2']; // 0 - safe, 1 - sensitive, 2 - harmful
+
+/**
+ * 
+ * FUNCTIONS
+ * 
+ */
 
 async function OpenAI_AdventureRequest (prompt) {
 
@@ -70,11 +91,77 @@ async function OpenAI_AdventureRequest (prompt) {
     }
 }
 
+async function OpenAI_ContentFilter (content) {
+
+    const params = {
+        "model":"content-filter-alpha",
+        "prompt": "<|endoftext|>"+content+"\n--\nLabel:",
+        "temperature": 0,
+        "max_tokens": 1,
+        "top_p": 0,
+        "logprobs":10
+    };
+    
+    const headers = {
+        'Authorization': `Bearer ${OPENAI_SECRET_KEY}`,
+    };
+    
+    try {
+        const response = await got.post(OPENAI_URL, { json: params, headers: headers }).json();
+        
+        let output_label = response["choices"][0]["text"]
+
+        // This is the probability at which we evaluate that a "2" is likely real
+        // vs. should be discarded as a false positive
+        const toxic_threshold = -0.355
+        
+        if (output_label === "2"){
+            // If the model returns "2", return its confidence in 2 or other output-labels
+            const logprobs = response["choices"][0]["logprobs"]["top_logprobs"][0];
+        
+            // If the model is not sufficiently confident in "2",
+            // choose the most probable of "0" or "1"
+            // Guaranteed to have a confidence for 2 since this was the selected token.
+            if (logprobs["2"] < toxic_threshold){
+
+                const logprob_0 = get(logprobs, "0", null);
+                const logprob_1 = get(logprobs, "1", null);
+        
+                // If both "0" and "1" have probabilities, set the output label
+                // to whichever is most probable
+                if (logprob_0 !== null && logprob_1 !== null){
+                    if (logprob_0 >= logprob_1) output_label = "0";
+                    else output_label = "1";
+                }
+                // If only one of them is found, set output label to that one
+                else if (logprob_0 !== null) output_label = "0";
+                else if (logprob_1 !== null) output_label = "1";
+                // If neither "0" or "1" are available, stick with "2"
+                // by leaving output_label unchanged.
+            }
+           
+        }
+        
+        // if the most probable token is none of "0", "1", or "2"
+        // this should be set as unsafe
+        if (!(["0", "1", "2"].includes(output_label))) output_label = "2";
+        
+        return output_label
+    } catch (err) {
+        console.log(err);
+        return "Error: " + err;
+    }
+}
+
 function UpdateSessionChat(attributesManager, prefix, msg, suffix, latestMsg)
 {
     let sessionAttributes = attributesManager.getSessionAttributes();
-    sessionAttributes.chat += prefix + msg + suffix;
-    if (latestMsg !== null) sessionAttributes.latestMsg = latestMsg;
+    
+    if (prefix !== null && prefix !== undefined && prefix !== "") sessionAttributes.chat += prefix;  
+    sessionAttributes.chat += msg;  
+    if (suffix !== null && suffix !== undefined && suffix !== "") sessionAttributes.chat += suffix;
+    if (latestMsg !== null && latestMsg !== undefined && latestMsg !== "" ) sessionAttributes.latestMsg = latestMsg;
+    
     attributesManager.setSessionAttributes(sessionAttributes);
 }
 
@@ -83,6 +170,16 @@ function ClampSentences(msg, maxSentences)
     let splitted_msg = msg.split(".");
     if (splitted_msg.length >= maxSentences + 1) return splitted_msg.slice(0, 2).join('.');
     else return msg;
+}
+
+function ClampString(msg, maxCharacters)
+{
+    return msg.length > maxCharacters ? msg.substring(0, maxCharacters) : msg;
+}
+
+function get(object, key, default_value) {
+    var result = object[key];
+    return (typeof result !== "undefined") ? result : default_value;
 }
 
 /**
@@ -117,19 +214,34 @@ const AdventureChoiceIntentHandler = {
         const requestAttributes = handlerInput.attributesManager.getRequestAttributes();
         
         const intent = handlerInput.requestEnvelope.request.intent;
-        let action = intent.slots.action.value;
-
-        UpdateSessionChat(handlerInput.attributesManager, "\nHumano: ", action, "\nIA:", null);
+        const action = ClampString(intent.slots.action.value, maxActionLength);
         
-        let ai_response = await OpenAI_AdventureRequest(handlerInput.attributesManager.getSessionAttributes().chat);
+        const new_chat_section = "\nHumano: " + action + "\nIA:";
+        const extended_chat = handlerInput.attributesManager.getSessionAttributes().chat + new_chat_section;
+        let ai_response = await OpenAI_AdventureRequest(extended_chat);
         ai_response = ClampSentences(ai_response, 2);
         
-        UpdateSessionChat(handlerInput.attributesManager, "", ai_response, "", ai_response);
+        const toxicity_label = await OpenAI_ContentFilter(ai_response); // 0 - safe, 1 - sensitive, 2 - harmful
+
+        if (toxicLabels.includes(toxicity_label))
+        {
+            const lang = handlerInput.requestEnvelope.request.locale.split('-')[0];
+            
+            return handlerInput.responseBuilder
+                .speak(warningMsg[lang])
+                .reprompt(requestAttributes.t('HELP_MSG'))
+                .getResponse();
+        }
+        else
+        {
+            UpdateSessionChat(handlerInput.attributesManager, "", new_chat_section, "", null);
+            UpdateSessionChat(handlerInput.attributesManager, "", ai_response, "", ai_response);
         
-        return handlerInput.responseBuilder
-            .speak(ai_response)
-            .reprompt(requestAttributes.t('HELP_MSG'))
-            .getResponse();
+            return handlerInput.responseBuilder
+                .speak(ai_response)
+                .reprompt(requestAttributes.t('HELP_MSG'))
+                .getResponse();
+        }
     }
 };
 

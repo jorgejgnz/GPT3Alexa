@@ -1,6 +1,8 @@
 # Ramified Stories using GPT3 and Alexa
 
-Alexa Skill that performs requests to OpenAI API to continue a story according to user's actions. It works in both English and Spanish.
+Alexa Skill that performs requests to OpenAI API to continue a story according to user's actions. It supports both English and Spanish.
+
+A content filter is applied to the completions produced, eliminating potentially harmful AI responses, as recommended in [Open AI documentation](https://beta.openai.com/docs/models/content-filter).
 
 The following fragment is an example of the output that can be obtained with this skill:
 
